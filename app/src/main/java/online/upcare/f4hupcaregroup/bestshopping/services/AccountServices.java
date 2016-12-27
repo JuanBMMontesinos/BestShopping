@@ -2,6 +2,8 @@ package online.upcare.f4hupcaregroup.bestshopping.services;
 
 import android.app.ProgressDialog;
 
+import com.facebook.AccessToken;
+
 import online.upcare.f4hupcaregroup.bestshopping.infrastructure.ServiceResponse;
 
 public class AccountServices {
@@ -38,5 +40,19 @@ public class AccountServices {
 
     public static class LogUserInResponse extends ServiceResponse {
 
+    }
+
+    public static class LogUserInFacebookRequest {
+        public AccessToken accessToken;
+        public ProgressDialog progressDialog;
+        public String userName;
+        public String userEmail;
+
+        public LogUserInFacebookRequest(AccessToken accessToken, ProgressDialog progressDialog, String userName, String userEmail) {
+            this.accessToken = accessToken;
+            this.progressDialog = progressDialog;
+            this.userName = userName;
+            this.userEmail = userEmail;
+        }
     }
 }

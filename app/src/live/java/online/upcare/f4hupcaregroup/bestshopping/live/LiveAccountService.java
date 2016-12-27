@@ -3,11 +3,17 @@ package online.upcare.f4hupcaregroup.bestshopping.live;
 import android.support.annotation.NonNull;
 import android.widget.Toast;
 
+import com.firebase.client.DataSnapshot;
 import com.firebase.client.Firebase;
+import com.firebase.client.FirebaseError;
 import com.firebase.client.ServerValue;
+import com.firebase.client.ValueEventListener;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
+import com.google.firebase.auth.AuthCredential;
 import com.google.firebase.auth.AuthResult;
+import com.google.firebase.auth.FacebookAuthCredential;
+import com.google.firebase.auth.FacebookAuthProvider;
 import com.squareup.otto.Subscribe;
 
 import java.math.BigInteger;
@@ -113,4 +119,46 @@ public class LiveAccountService extends BaseLiveService {
         }
         bus.post(response);
     }
+
+    @Subscribe
+    public void FacebookLogin(final AccountServices.LogUserInFacebookRequest request){
+        request.progressDialog.show();
+
+        AuthCredential authCredential = FacebookAuthProvider.getCredential(request.accessToken.getToken());
+
+        auth.signInWithCredential(authCredential).addOnCompleteListener(new OnCompleteListener<AuthResult>() {
+            @Override
+            public void onComplete(@NonNull Task<AuthResult> task) {
+                if(!task.isSuccessful()){
+                    request.progressDialog.dismiss();
+                    Toast.makeText(application.getApplicationContext(), task.getException().getMessage(), Toast.LENGTH_LONG).show();
+                } else {
+                    final Firebase reference = new Firebase(Utils.FIREBASE_USER_REFERENCE + Utils.encodeEmail(request.userEmail));
+                    reference.addListenerForSingleValueEvent(new ValueEventListener() {
+                        @Override
+                        public void onDataChange(DataSnapshot dataSnapshot) {
+                            if(dataSnapshot.getValue() == null){
+                                HashMap<String, Object> timeJoined = new HashMap<>();
+                                timeJoined.put("dateJoined", ServerValue.TIMESTAMP);
+                                reference.child("email").setValue(request.userEmail);
+                                reference.child("name").setValue(request.userName);
+                                reference.child("hasLoggedInWithPassword").setValue(true);
+                                reference.child("timeJoined").setValue(timeJoined);
+                            }
+                        }
+
+                        @Override
+                        public void onCancelled(FirebaseError firebaseError) {
+                            request.progressDialog.dismiss();
+                            Toast.makeText(application.getApplicationContext(), firebaseError.getMessage().toString(), Toast.LENGTH_LONG).show();
+                        }
+                    });
+
+                    request.progressDialog.dismiss();
+                    Toast.makeText(application.getApplicationContext(), "User has logged in", Toast.LENGTH_LONG).show();
+                }
+            }
+        });
+    }
+
 }
