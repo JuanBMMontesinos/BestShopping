@@ -1,5 +1,7 @@
 package online.upcare.f4hupcaregroup.bestshopping.live;
 
+import android.content.Intent;
+import android.content.SharedPreferences;
 import android.support.annotation.NonNull;
 import android.widget.Toast;
 
@@ -20,6 +22,9 @@ import java.math.BigInteger;
 import java.security.SecureRandom;
 import java.util.HashMap;
 
+import online.upcare.f4hupcaregroup.bestshopping.activities.LoginActivity;
+import online.upcare.f4hupcaregroup.bestshopping.activities.MainActivity;
+import online.upcare.f4hupcaregroup.bestshopping.entities.User;
 import online.upcare.f4hupcaregroup.bestshopping.infrastructure.BestShoppingApplication;
 import online.upcare.f4hupcaregroup.bestshopping.infrastructure.Utils;
 import online.upcare.f4hupcaregroup.bestshopping.services.AccountServices;
@@ -71,16 +76,15 @@ public class LiveAccountService extends BaseLiveService {
 
                                                   Toast.makeText(application.getApplicationContext(), "Please check your email", Toast.LENGTH_LONG).show();
                                                   request.progressDialog.dismiss();
+                                                  Intent intent = new Intent(application.getApplicationContext(), LoginActivity.class);
+                                                  intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+                                                  application.startActivity(intent);
                                               }
                                           }
                                       });
                             }
                         }
                     });
-
-
-
-
         }
 
         bus.post(response);
@@ -105,14 +109,35 @@ public class LiveAccountService extends BaseLiveService {
                         @Override
                         public void onComplete(@NonNull Task<AuthResult> task) {
                             if(!task.isSuccessful()){
-
                                 request.progressDialog.dismiss();
                                 Toast.makeText(application.getApplicationContext(), task.getException().getMessage(), Toast.LENGTH_LONG).show();
                             } else {
-                                Firebase userLocation = new Firebase(Utils.FIREBASE_USER_REFERENCE + Utils.encodeEmail(request.userEmail));
-                                userLocation.child("hasLoggedInWithPassword").setValue(true);
-                                request.progressDialog.dismiss();
-                                Toast.makeText(application.getApplicationContext(), "User has logged in", Toast.LENGTH_LONG).show();
+                                final Firebase userLocation = new Firebase(Utils.FIREBASE_USER_REFERENCE + Utils.encodeEmail(request.userEmail));
+                                userLocation.addListenerForSingleValueEvent(new ValueEventListener() {
+                                    @Override
+                                    public void onDataChange(DataSnapshot dataSnapshot) {
+                                        User user = dataSnapshot.getValue(User.class);
+                                        if(user != null) {
+                                            userLocation.child("hasLoggedInWithPassword").setValue(true);
+                                            SharedPreferences sharedPreferences = request.sharedPreferences;
+                                            sharedPreferences.edit().putString(Utils.EMAIL, Utils.encodeEmail(user.getEmail())).apply();
+                                            sharedPreferences.edit().putString(Utils.USERNAME, user.getName()).apply();
+                                            request.progressDialog.dismiss();
+                                            Intent intent = new Intent(application.getApplicationContext(), MainActivity.class);
+                                            intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+                                            application.startActivity(intent);
+                                        } else {
+                                            request.progressDialog.dismiss();
+                                            Toast.makeText(application.getApplicationContext(), "Failed to connect to server. Please try again.", Toast.LENGTH_LONG).show();
+                                        }
+                                    }
+
+                                    @Override
+                                    public void onCancelled(FirebaseError firebaseError) {
+                                        request.progressDialog.dismiss();
+                                        Toast.makeText(application.getApplicationContext(), firebaseError.getMessage(), Toast.LENGTH_LONG).show();
+                                    }
+                                });
                             }
                         }
                     });
@@ -154,8 +179,13 @@ public class LiveAccountService extends BaseLiveService {
                         }
                     });
 
+                    SharedPreferences sharedPreferences = request.sharedPreferences;
+                    sharedPreferences.edit().putString(Utils.EMAIL, Utils.encodeEmail(request.userEmail)).apply();
+                    sharedPreferences.edit().putString(Utils.USERNAME, request.userName).apply();
                     request.progressDialog.dismiss();
-                    Toast.makeText(application.getApplicationContext(), "User has logged in", Toast.LENGTH_LONG).show();
+                    Intent intent = new Intent(application.getApplicationContext(), MainActivity.class);
+                    intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+                    application.startActivity(intent);
                 }
             }
         });
